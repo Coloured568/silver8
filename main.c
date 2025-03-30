@@ -24,6 +24,7 @@ enum {
     PRNTCH, // 0x09 - print character from video memory
     PRNTREG, // 0x0A - register value
     PRNTVMEM, // 0x0B - print video memory
+    IF // 0x0C - if statement
 };
 
 char characters[] = {
@@ -37,7 +38,7 @@ char characters[] = {
     '`', '~', 
     'q', 'w', 'e', 'r', 't', 'y', 'u', 'i', 'o', 'p', 
     'a', 's', 'd', 'f', 'g', 'h', 'j', 'k', 'l', 
-    'z', 'x', 'c', 'v', 'b', 'n', 'm', 
+    'z', 'x', 'c', 'v', 'b', 'n', 'm', '\n', 
     ' '
 };
 
@@ -143,6 +144,17 @@ void execute(CPU *cpu) {
             printf("Video Memory Size: %d bytes\n", VMEM_SIZE);
             break;
         }
+        case IF: {
+            uint8_t condition = fetch(cpu); // Fetch the condition (0 for false, 1 for true)
+            uint8_t true_addr = fetch(cpu); // Fetch the address to jump if condition is true
+            uint8_t false_addr = fetch(cpu); // Fetch the address to jump if condition is false
+            if (condition == 1) {
+                cpu->pc = true_addr; // Jump to true address if condition is true
+            } else {
+                cpu->pc = false_addr; // Jump to false address if condition is false
+            }
+            break;
+        }
         default:
             printf("Unknown instruction: %02X\n", opcode);
             cpu->running = false;
@@ -171,6 +183,7 @@ int get_opcode(const char *mnemonic) {
     if (strcmp(mnemonic, "PRNTCH") == 0) return PRNTCH;
     if (strcmp(mnemonic, "PRNTREG") == 0) return PRNTREG;
     if (strcmp(mnemonic, "PRNTVMEM") == 0) return PRNTVMEM;
+    if (strcmp(mnemonic, "IF") == 0) return IF;
     return -1; // Invalid opcode
 }
 
