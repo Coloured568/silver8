@@ -12,3 +12,5 @@ a my own cpu
 6. it should output whatever program you ran!
 
 P.S the program file *has* to be named "program.s8" it will not work otherwise. i havent really implemented a "file-loader" or anything like that yet.
+# yes i am totally interested and i totally want to write programs for this emulator!!!!!!!!!!!!!!!!!!!!!!1
+documentation will come soon (eventually or even never)
