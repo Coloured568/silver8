@@ -9,6 +9,8 @@
 #define VMEM_SIZE 256 // video memory for graphics in bytes
 #define MAX_PROGRAM_SIZE 512 // maximum size of the programs
 #define REG_COUNT 2 // cpu registers
+#define SCREEN_WIDTH 16
+#define SCREEN_HEIGHT 16
 
 // Opcodes
 enum {
@@ -24,7 +26,14 @@ enum {
     PRNTCH, // 0x09 - print character from video memory
     PRNTREG, // 0x0A - register value
     PRNTVMEM, // 0x0B - print video memory
-    IF // 0x0C - if statement
+    IF, // 0x0C - if statement
+    PRNTMEM, // 0x0D - print memory
+    STORE, // 0x0E - store value
+    PRNTFREE, // 0x0F - print free memory
+    PRNTFREEV, // 0x10 - print free video memory
+    RENDER, // 0x11 - render graphics
+    STOREVMEM, // 0x12 - store value in video memory
+    CLR, // 0x13 - clear screen
 };
 
 char characters[] = {
@@ -48,7 +57,7 @@ typedef struct {
     uint8_t registers[REG_COUNT];
     uint8_t pc;  // Program Counter
     uint64_t executed_instructions; // Count executed instructions
-    char video_memory[VMEM_SIZE]; // Video memory for graphics
+    char video_memory[SCREEN_WIDTH * SCREEN_HEIGHT]; // Video memory for graphics
     bool running;
 } CPU;
 
@@ -113,8 +122,8 @@ void execute(CPU *cpu) {
         case PRNTCH: // syntax: PRNTCH, index 
         {
             uint8_t char_index = fetch(cpu); // Fetch the index of the character to print
-            if (char_index < VMEM_SIZE) {
-                char character = cpu->video_memory[char_index]; // Get the character from video memory
+            if (char_index < MEM_SIZE) {
+                char character = cpu->memory[char_index]; // Get the character from video memory
                 // printf("PRNTCH: Fetching character '%c' from video memory index %d\n", character, char_index);
                 printf("%c", character); // Print the character to the console
             } else {
@@ -144,6 +153,19 @@ void execute(CPU *cpu) {
             printf("Video Memory Size: %d bytes\n", VMEM_SIZE);
             break;
         }
+        case PRNTMEM: {
+            printf("Memory: ");
+            for (int i = 0; i < MEM_SIZE; i++) {
+                if (cpu->memory[i] != 0) { // Only print non-zero values
+                    printf("%c", cpu->memory[i]);
+                } else {
+                    printf("."); // Placeholder for empty slots
+                }
+            }
+            printf("\n");
+            printf("Memory Size: %d bytes\n", MEM_SIZE);
+            break;
+        }
         case IF: {
             uint8_t condition = fetch(cpu); // Fetch the condition (0 for false, 1 for true)
             uint8_t true_addr = fetch(cpu); // Fetch the address to jump if condition is true
@@ -153,6 +175,74 @@ void execute(CPU *cpu) {
             } else {
                 cpu->pc = false_addr; // Jump to false address if condition is false
             }
+            break;
+        }
+        case STORE: {
+            uint8_t reg = fetch(cpu);  // Fetch the register containing the value to store
+            uint8_t addr = fetch(cpu); // Fetch the memory address to store the value
+            if (addr < MEM_SIZE) {
+                cpu->memory[addr] = cpu->registers[reg]; // Store the value in system memory
+            } else if (addr < MEM_SIZE + SCREEN_WIDTH * SCREEN_HEIGHT) {
+                addr -= MEM_SIZE; // Adjust address for video memory
+                cpu->video_memory[addr] = cpu->registers[reg]; // Store the value in video memory
+            } else {
+                printf("Invalid memory address: %d\n", addr);
+            }
+            break;
+        }
+        case PRNTFREE: {
+            int free_memory = 0;
+            for (int i = 0; i < MEM_SIZE; i++) {
+                if (cpu->memory[i] == 0) { // Count empty memory slots
+                    free_memory++;
+                }
+            }
+            printf("Free Memory: %d bytes\n", free_memory);
+            break;
+        }
+        case PRNTFREEV: {
+            int free_memory = 0;
+            for (int i = 0; i < VMEM_SIZE; i++) {
+                if (cpu->video_memory[i] == 0) { // Count empty memory slots
+                    free_memory++;
+                }
+            }
+            printf("Free Video Memory: %d bytes\n", free_memory);
+            break;
+        }
+        case RENDER: {
+            printf("\n--- Output ---\n");
+            for (int y = 0; y < SCREEN_HEIGHT; y++) {
+                for (int x = 0; x < SCREEN_WIDTH; x++) {
+                    char c = cpu->video_memory[y * SCREEN_WIDTH + x];
+                    if (c == '\0') {
+                        printf("."); // Empty cells are displayed as dots
+                    } else {
+                        printf("%c", c); // Print the character
+                    }
+                }
+                printf("\n"); // Newline after each row
+            }
+            printf("--------------------\n");
+            break;
+        }
+        case STOREVMEM: {
+            uint8_t reg = fetch(cpu);  // Fetch the register containing the value to store
+            uint8_t x = fetch(cpu);    // Fetch the x coordinate for video memory
+            uint8_t y = fetch(cpu);    // Fetch the y coordinate for video memory
+            if (x < SCREEN_WIDTH && y < SCREEN_HEIGHT) {
+                int addr = y * SCREEN_WIDTH + x; // Calculate the address in video memory
+                cpu->video_memory[addr] = cpu->registers[reg]; // Store the value in video memory
+            } else {
+                printf("Invalid video memory coordinates: (%d, %d)\n", x, y);
+            }
+            break;
+        }
+        case CLR: { // quite literally just clears vram
+            for (int i = 0; i < SCREEN_WIDTH * SCREEN_HEIGHT; i++) {
+                cpu->video_memory[i] = '\0'; // Set all video memory slots to null
+            }
+            printf("Screen cleared.\n");
             break;
         }
         default:
@@ -184,6 +274,12 @@ int get_opcode(const char *mnemonic) {
     if (strcmp(mnemonic, "PRNTREG") == 0) return PRNTREG;
     if (strcmp(mnemonic, "PRNTVMEM") == 0) return PRNTVMEM;
     if (strcmp(mnemonic, "IF") == 0) return IF;
+    if (strcmp(mnemonic, "PRNTMEM") == 0) return PRNTMEM;
+    if (strcmp(mnemonic, "STORE") == 0) return STORE;
+    if (strcmp(mnemonic, "PRNTFREE") == 0) return PRNTFREE;
+    if (strcmp(mnemonic, "PRNTFREEV") == 0) return PRNTFREEV;  
+    if (strcmp(mnemonic, "RENDER") == 0) return RENDER;
+    if (strcmp(mnemonic, "STOREVMEM") == 0) return STOREVMEM;
     return -1; // Invalid opcode
 }
 
@@ -240,18 +336,18 @@ void run(CPU *cpu) {
     // Calculate instructions per second (IPS)
     double mips = (cpu->executed_instructions / elapsed_time)/1000000;
     /* printf("CPU executed %lu instructions in %.2f seconds\n", cpu->executed_instructions, elapsed_time);
-    printf("Emulated CPU speed: %.2f million instructions per second (MIPS)\n", mips); */
+    printf("Emulated CPU speed: %.2f MIPS\n", mips); */
 }
 
 int main() {
     CPU cpu = {0};
 
     // Initialize video memory with some characters
-    for (int i = 0; i < VMEM_SIZE; i++) {
+    for (int i = 0; i < MEM_SIZE; i++) {
         if (i < sizeof(characters)) {
-            cpu.video_memory[i] = characters[i]; // Fill video memory with characters
+            cpu.memory[i] = characters[i]; // Fill video memory with characters
         } else {
-            cpu.video_memory[i] = '\0'; // Fill remaining with null characters
+            cpu.memory[i] = '\0'; // Fill remaining with null characters
         }
     }
 
