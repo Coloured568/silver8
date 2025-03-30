@@ -223,7 +223,7 @@ void execute(CPU *cpu) {
                 }
                 printf("\n"); // Newline after each row
             }
-            printf("--------------------\n");
+            printf("----------------\n");
             break;
         }
         case STOREVMEM: {
