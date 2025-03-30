@@ -5,6 +5,7 @@
 #include <string.h>
 #include <stdlib.h> // Required for EXIT_FAILURE
 
+#define CPU_NAME "Silver8 Gen1"
 #define MEM_SIZE 512 // system memory in bytes
 #define VMEM_SIZE 256 // video memory for graphics in bytes
 #define MAX_PROGRAM_SIZE 512 // maximum size of the programs
@@ -239,10 +240,10 @@ void execute(CPU *cpu) {
             break;
         }
         case CLR: { // quite literally just clears vram
-            for (int i = 0; i < SCREEN_WIDTH * SCREEN_HEIGHT; i++) {
-                cpu->video_memory[i] = '\0'; // Set all video memory slots to null
+            for (int i = 0; i < MEM_SIZE; i++) {
+                cpu->memory[i] = '\0'; // clear system memory
             }
-            printf("Screen cleared.\n");
+            printf("memory cleared.\n");
             break;
         }
         default:
@@ -280,6 +281,7 @@ int get_opcode(const char *mnemonic) {
     if (strcmp(mnemonic, "PRNTFREEV") == 0) return PRNTFREEV;  
     if (strcmp(mnemonic, "RENDER") == 0) return RENDER;
     if (strcmp(mnemonic, "STOREVMEM") == 0) return STOREVMEM;
+    if (strcmp(mnemonic, "CLR") == 0) return CLR;
     return -1; // Invalid opcode
 }
 
@@ -335,8 +337,8 @@ void run(CPU *cpu) {
 
     // Calculate instructions per second (IPS)
     double mips = (cpu->executed_instructions / elapsed_time)/1000000;
-    /* printf("CPU executed %lu instructions in %.2f seconds\n", cpu->executed_instructions, elapsed_time);
-    printf("Emulated CPU speed: %.2f MIPS\n", mips); */
+    printf("CPU executed %lu instructions in %.2f seconds\n", cpu->executed_instructions, elapsed_time);
+    printf("%s @ %.2f MIPS\n", CPU_NAME, mips); // Print the CPU name and MIPS
 }
 
 int main() {
