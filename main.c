@@ -211,7 +211,7 @@ void execute(CPU *cpu) {
             break;
         }
         case RENDER: {
-            printf("\n--- Output ---\n");
+            printf("\n---- Output ----\n");
             for (int y = 0; y < SCREEN_HEIGHT; y++) {
                 for (int x = 0; x < SCREEN_WIDTH; x++) {
                     char c = cpu->video_memory[y * SCREEN_WIDTH + x];
