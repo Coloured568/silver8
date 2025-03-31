@@ -1,7 +1,11 @@
 # silver8
 a my own cpu
 
-- no linux build (yet)
+# linux instructions
+1. build it from source
+2. download program.s8 (to ensure the emulator works)
+3. run ./silver8 (while program.s8 is in the same directory)
+4. boom!!!!!!!!!!!!
 
 # windows instructions
 1. either build it from the source (preferred) or download it from the latest releawse.
