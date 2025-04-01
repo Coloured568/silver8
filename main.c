@@ -6,8 +6,8 @@
 #include <stdlib.h> // Required for EXIT_FAILURE
 
 #define CPU_NAME "Silver8 Gen1"
-static int MEM_SIZE = 1024; // system memory in bytes
-static int VMEM_SIZE = 256; // video memory for graphics in bytes
+#define MEM_SIZE 1024 // system memory in bytes
+#define VMEM_SIZE 256 // video memory for graphics in bytes
 #define MAX_PROGRAM_SIZE 512 // maximum size of the programs
 #define REG_COUNT 2 // cpu registers
 #define SCREEN_WIDTH 16
