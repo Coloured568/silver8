@@ -6,12 +6,14 @@
 #include <stdlib.h> // Required for EXIT_FAILURE
 
 #define CPU_NAME "Silver8 Gen1"
-#define MEM_SIZE 512 // system memory in bytes
-#define VMEM_SIZE 256 // video memory for graphics in bytes
+static int MEM_SIZE = 1024; // system memory in bytes
+static int VMEM_SIZE = 256; // video memory for graphics in bytes
 #define MAX_PROGRAM_SIZE 512 // maximum size of the programs
 #define REG_COUNT 2 // cpu registers
 #define SCREEN_WIDTH 16
 #define SCREEN_HEIGHT 16
+
+static bool debugging = true;
 
 // Opcodes
 enum {
@@ -343,7 +345,6 @@ void run(CPU *cpu) {
 
 int main() {
     CPU cpu = {0};
-
     // Initialize video memory with some characters
     for (int i = 0; i < MEM_SIZE; i++) {
         if (i < sizeof(characters)) {
@@ -362,7 +363,13 @@ int main() {
 
     // Run the CPU
     run(&cpu);
-
+    if(debugging) {
+        printf("Executed Instructions: %lu\n", cpu.executed_instructions);
+        for(int i = 0; i < program_size; i++) {
+            printf("%02X ", program[i]); // Print the program in hex format
+        }
+    }
+    
     printf("\n");
     return 0;
 }
