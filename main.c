@@ -4,16 +4,15 @@
 #include <time.h>
 #include <string.h>
 #include <stdlib.h> // Required for EXIT_FAILURE
+#include <unistd.h> // Required for accesss function
 
 #define CPU_NAME "Silver8 Gen1"
-#define MEM_SIZE 1024 // system memory in bytes
-#define VMEM_SIZE 256 // video memory for graphics in bytes
+#define MEM_SIZE 4196 // system memory in bytes
+#define VMEM_SIZE 1024 // video memory for graphics in bytes
 #define MAX_PROGRAM_SIZE 512 // maximum size of the programs
 #define REG_COUNT 2 // cpu registers
 #define SCREEN_WIDTH 16
 #define SCREEN_HEIGHT 16
-
-static bool debugging = true;
 
 // Opcodes
 enum {
@@ -173,10 +172,21 @@ void execute(CPU *cpu) {
             uint8_t condition = fetch(cpu); // Fetch the condition (0 for false, 1 for true)
             uint8_t true_addr = fetch(cpu); // Fetch the address to jump if condition is true
             uint8_t false_addr = fetch(cpu); // Fetch the address to jump if condition is false
+
             if (condition == 1) {
-                cpu->pc = true_addr; // Jump to true address if condition is true
+                if (true_addr < MEM_SIZE) {
+                    cpu->pc = true_addr; // Jump to true address if condition is true
+                } else {
+                    printf("Invalid true address: %d\n", true_addr);
+                    cpu->running = false; // Stop execution if the address is invalid
+                }
             } else {
-                cpu->pc = false_addr; // Jump to false address if condition is false
+                if (false_addr < MEM_SIZE) {
+                    cpu->pc = false_addr; // Jump to false address if condition is false
+                } else {
+                    printf("Invalid false address: %d\n", false_addr);
+                    cpu->running = false; // Stop execution if the address is invalid
+                }
             }
             break;
         }
@@ -323,6 +333,18 @@ size_t parse_s8_file(const char *filename, uint8_t *program) {
     return program_size;
 }
 
+bool includes_extension(const char *file) {
+    const char *ext = strrchr(file, '.');
+    if (ext != NULL && strcmp(ext, ".s8") == 0) {
+        return true;
+    }
+    return false;
+}
+
+bool file_exists(const char *file) {
+    return access(file, F_OK) == 0;
+}
+
 // Run the CPU and measure speed
 void run(CPU *cpu) {
     cpu->running = true;
@@ -343,8 +365,9 @@ void run(CPU *cpu) {
     printf("%s @ %.2f MIPS\n", CPU_NAME, mips); // Print the CPU name and MIPS
 }
 
-int main() {
+int main(int argc, char **argv) {
     CPU cpu = {0};
+
     // Initialize video memory with some characters
     for (int i = 0; i < MEM_SIZE; i++) {
         if (i < sizeof(characters)) {
@@ -356,20 +379,41 @@ int main() {
 
     // Load the program from a .s8 file
     uint8_t program[MAX_PROGRAM_SIZE]; // defines program array
-    size_t program_size = parse_s8_file("program.s8", program); // loads program into array (if it'd work)
+    size_t program_size = 0;
+    for (int i = 1; i < argc; i++) {
+        if (includes_extension(argv[i])) {
+            if (file_exists(argv[i])) {
+                program_size = parse_s8_file(argv[i], program); // Loads the program into array from command line argument
+            } else {
+                perror("File doesn't exist!\nDefaulting to program.s8\n");
+            }
+        } else {
+            char *filename_with_ext = (char *)malloc(strlen(argv[i]) + strlen(".s8") + 1);
+            if (filename_with_ext == NULL) {
+                perror("Failed to allocate memory\n");
+                exit(EXIT_FAILURE);
+            }
+            strcpy(filename_with_ext, argv[i]);
+            strcat(filename_with_ext, ".s8");
+            if (file_exists(filename_with_ext)) {
+                program_size = parse_s8_file(filename_with_ext, program);
+                // program_size = parse_s8_file((char[]) {argv[i], '.s8', '\0'}, program);
+            } else {
+                perror("File doesn't exist!\nDefaulting to program.s8\n");
+            }
+            free(filename_with_ext); // Don't forget to free the allocated memory
+        }
+    }
+    if (program_size == 0) {
+        program_size = parse_s8_file("program.s8", program);
+    }
 
     // Load the program into memory
     load_program(&cpu, program, program_size);
 
     // Run the CPU
     run(&cpu);
-    if(debugging) {
-        printf("Executed Instructions: %lu\n", cpu.executed_instructions);
-        for(int i = 0; i < program_size; i++) {
-            printf("%02X ", program[i]); // Print the program in hex format
-        }
-    }
-    
+
     printf("\n");
     return 0;
 }
