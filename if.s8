@@ -1,0 +1,6 @@
+LOAD, 0, 1
+LOAD, 1, 1
+ADD, 0, 1
+PRNTREG, 0
+JMP, 6
+HALT  

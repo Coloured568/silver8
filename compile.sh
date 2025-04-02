@@ -1,0 +1,1 @@
+gcc -o silver8 main.c -static
