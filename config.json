@@ -1,8 +1,0 @@
-{
-    "MEM_SIZE": 4096,
-    "VMEM_SIZE": 1024,
-    "MAX_PROGRAM_SIZE": 512,
-    "REG_COUNT": 2,
-    "SCREEN_WIDTH": 16,
-    "SCREEN_HEIGHT": 16
-}
