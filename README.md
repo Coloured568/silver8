@@ -1,5 +1,5 @@
 # silver8
-My own CPU
+The community's pseudo-assembly!
 
 # Linux Instructions
 1. Build it from source
