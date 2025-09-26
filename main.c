@@ -1,42 +1,12 @@
-#include <stdio.h>
-#include <stdint.h>
-#include <stdbool.h>
-#include <time.h>
-#include <string.h>
-#include <stdlib.h> // Required for EXIT_FAILURE
-#include <unistd.h> // Required for accesss function
+#include "main.h"
+#include "parse.h"
 
-#define CPU_NAME "Silver8 Gen1"
-#define MEM_SIZE 4196 // system memory in bytes
-#define VMEM_SIZE 1024 // video memory for graphics in bytes
-#define MAX_PROGRAM_SIZE 512 // maximum size of the programs
-#define REG_COUNT 2 // cpu registers
-#define SCREEN_WIDTH 16
-#define SCREEN_HEIGHT 16
-
-// Opcodes
-enum {
-    NOP, // 0x00 - no operation
-    LOAD, // 0x01 - load value
-    ADD,  // 0x02 - addition
-    SUB, // 0x03 - subtraction
-    JMP, // 0x04 - jump to address
-    JZ, // 0x05 - jump if zero
-    HALT, // 0x06 - halt execution of programs
-    MUL, // 0x07 - multiplicaton
-    DIV,// 0x08 division
-    PRNTCH, // 0x09 - print character from video memory
-    PRNTREG, // 0x0A - register value
-    PRNTVMEM, // 0x0B - print video memory
-    IF, // 0x0C - if statement
-    PRNTMEM, // 0x0D - print memory
-    STORE, // 0x0E - store value
-    PRNTFREE, // 0x0F - print free memory
-    PRNTFREEV, // 0x10 - print free video memory
-    RENDER, // 0x11 - render graphics
-    STOREVMEM, // 0x12 - store value in video memory
-    CLR, // 0x13 - clear screen
-};
+uint32_t mem_size = 4196;
+uint32_t vmem_size = 1024;
+uint32_t max_program_size = 512;
+uint8_t reg_count = 2;
+uint32_t screen_width = 16;
+uint32_t screen_height = 16;
 
 char characters[] = {
     0, 'Q', 'W', 'E', 'R', 'T', 'Y', 'U', 'I', 'O', 'P', 
@@ -52,16 +22,6 @@ char characters[] = {
     'z', 'x', 'c', 'v', 'b', 'n', 'm', '\n', 
     ' '
 };
-
-// CPU Structure
-typedef struct {
-    uint8_t memory[MEM_SIZE];
-    uint8_t registers[REG_COUNT];
-    uint8_t pc;  // Program Counter
-    uint64_t executed_instructions; // Count executed instructions
-    char video_memory[SCREEN_WIDTH * SCREEN_HEIGHT]; // Video memory for graphics
-    bool running;
-} CPU;
 
 // Fetch instruction
 uint8_t fetch(CPU *cpu) {
@@ -124,9 +84,8 @@ void execute(CPU *cpu) {
         case PRNTCH: // syntax: PRNTCH, index 
         {
             uint8_t char_index = fetch(cpu); // Fetch the index of the character to print
-            if (char_index < MEM_SIZE) {
+            if (char_index < mem_size) {
                 char character = cpu->memory[char_index]; // Get the character from video memory
-                // printf("PRNTCH: Fetching character '%c' from video memory index %d\n", character, char_index);
                 printf("%c", character); // Print the character to the console
             } else {
                 printf("Invalid character index: %d\n", char_index);
@@ -135,7 +94,7 @@ void execute(CPU *cpu) {
         }
         case PRNTREG: {
             uint8_t reg = fetch(cpu); // fetches the register to print
-            if (reg < REG_COUNT) {
+            if (reg < reg_count) {
                 printf("%d %d", reg, cpu->registers[reg]);
             } else {
                 printf("Invalid register index: %d\n", reg);
@@ -144,7 +103,7 @@ void execute(CPU *cpu) {
         }
         case PRNTVMEM: {
             printf("Video Memory: ");
-            for (int i = 0; i < VMEM_SIZE; i++) {
+            for (int i = 0; i < vmem_size; i++) {
                 if (cpu->video_memory[i] != '\0') { // Only print non-empty characters
                     printf("%c", cpu->video_memory[i]);
                 } else {
@@ -152,12 +111,12 @@ void execute(CPU *cpu) {
                 }
             }
             printf("\n");
-            printf("Video Memory Size: %d bytes\n", VMEM_SIZE);
+            printf("Video Memory Size: %d bytes\n", vmem_size);
             break;
         }
         case PRNTMEM: {
             printf("Memory: ");
-            for (int i = 0; i < MEM_SIZE; i++) {
+            for (int i = 0; i < mem_size; i++) {
                 if (cpu->memory[i] != 0) { // Only print non-zero values
                     printf("%c", cpu->memory[i]);
                 } else {
@@ -165,7 +124,7 @@ void execute(CPU *cpu) {
                 }
             }
             printf("\n");
-            printf("Memory Size: %d bytes\n", MEM_SIZE);
+            printf("Memory Size: %d bytes\n", mem_size);
             break;
         }
         case IF: {
@@ -174,14 +133,14 @@ void execute(CPU *cpu) {
             uint8_t false_addr = fetch(cpu); // Fetch the address to jump if condition is false
 
             if (condition == 1) {
-                if (true_addr < MEM_SIZE) {
+                if (true_addr < mem_size) {
                     cpu->pc = true_addr; // Jump to true address if condition is true
                 } else {
                     printf("Invalid true address: %d\n", true_addr);
                     cpu->running = false; // Stop execution if the address is invalid
                 }
             } else {
-                if (false_addr < MEM_SIZE) {
+                if (false_addr < mem_size) {
                     cpu->pc = false_addr; // Jump to false address if condition is false
                 } else {
                     printf("Invalid false address: %d\n", false_addr);
@@ -193,10 +152,10 @@ void execute(CPU *cpu) {
         case STORE: {
             uint8_t reg = fetch(cpu);  // Fetch the register containing the value to store
             uint8_t addr = fetch(cpu); // Fetch the memory address to store the value
-            if (addr < MEM_SIZE) {
+            if (addr < mem_size) {
                 cpu->memory[addr] = cpu->registers[reg]; // Store the value in system memory
-            } else if (addr < MEM_SIZE + SCREEN_WIDTH * SCREEN_HEIGHT) {
-                addr -= MEM_SIZE; // Adjust address for video memory
+            } else if (addr < mem_size + screen_width * screen_height) {
+                addr -= mem_size; // Adjust address for video memory
                 cpu->video_memory[addr] = cpu->registers[reg]; // Store the value in video memory
             } else {
                 printf("Invalid memory address: %d\n", addr);
@@ -205,7 +164,7 @@ void execute(CPU *cpu) {
         }
         case PRNTFREE: {
             int free_memory = 0;
-            for (int i = 0; i < MEM_SIZE; i++) {
+            for (int i = 0; i < mem_size; i++) {
                 if (cpu->memory[i] == 0) { // Count empty memory slots
                     free_memory++;
                 }
@@ -215,7 +174,7 @@ void execute(CPU *cpu) {
         }
         case PRNTFREEV: {
             int free_memory = 0;
-            for (int i = 0; i < VMEM_SIZE; i++) {
+            for (int i = 0; i < vmem_size; i++) {
                 if (cpu->video_memory[i] == 0) { // Count empty memory slots
                     free_memory++;
                 }
@@ -225,9 +184,9 @@ void execute(CPU *cpu) {
         }
         case RENDER: {
             printf("\n---- Output ----\n");
-            for (int y = 0; y < SCREEN_HEIGHT; y++) {
-                for (int x = 0; x < SCREEN_WIDTH; x++) {
-                    char c = cpu->video_memory[y * SCREEN_WIDTH + x];
+            for (int y = 0; y < screen_height; y++) {
+                for (int x = 0; x < screen_width; x++) {
+                    char c = cpu->video_memory[y * screen_width + x];
                     if (c == '\0') {
                         printf("."); // Empty cells are displayed as dots
                     } else {
@@ -243,8 +202,8 @@ void execute(CPU *cpu) {
             uint8_t reg = fetch(cpu);  // Fetch the register containing the value to store
             uint8_t x = fetch(cpu);    // Fetch the x coordinate for video memory
             uint8_t y = fetch(cpu);    // Fetch the y coordinate for video memory
-            if (x < SCREEN_WIDTH && y < SCREEN_HEIGHT) {
-                int addr = y * SCREEN_WIDTH + x; // Calculate the address in video memory
+            if (x < screen_width && y < screen_height) {
+                int addr = y * screen_width + x; // Calculate the address in video memory
                 cpu->video_memory[addr] = cpu->registers[reg]; // Store the value in video memory
             } else {
                 printf("Invalid video memory coordinates: (%d, %d)\n", x, y);
@@ -252,7 +211,7 @@ void execute(CPU *cpu) {
             break;
         }
         case CLR: { // quite literally just clears vram
-            for (int i = 0; i < MEM_SIZE; i++) {
+            for (int i = 0; i < mem_size; i++) {
                 cpu->memory[i] = '\0'; // clear system memory
             }
             printf("memory cleared.\n");
@@ -267,7 +226,7 @@ void execute(CPU *cpu) {
 
 // Load program into memory
 void load_program(CPU *cpu, uint8_t *program, size_t size) {
-    for (size_t i = 0; i < size && i < MEM_SIZE; i++) {
+    for (size_t i = 0; i < size && i < mem_size; i++) {
         cpu->memory[i] = program[i];
     }
 }
@@ -297,54 +256,6 @@ int get_opcode(const char *mnemonic) {
     return -1; // Invalid opcode
 }
 
-// Parse the .s8 file and populate the program array
-size_t parse_s8_file(const char *filename, uint8_t *program) {
-    FILE *file = fopen(filename, "r");
-    if (!file) {
-        perror("Failed to open file");
-        exit(EXIT_FAILURE);
-    }
-
-    char line[256];
-    size_t program_size = 0;
-
-    while (fgets(line, sizeof(line), file)) {
-        char *token = strtok(line, ", \n");
-        while (token) {
-            if (program_size >= MAX_PROGRAM_SIZE) {
-                fprintf(stderr, "Program size exceeds maximum limit\n");
-                fclose(file);
-                exit(EXIT_FAILURE);
-            }
-
-            // Get the opcode or operand
-            int value = get_opcode(token);
-            if (value == -1) {
-                // If not an opcode, treat it as an operand
-                value = atoi(token);
-            }
-
-            program[program_size++] = (uint8_t)value;
-            token = strtok(NULL, ", \n");
-        }
-    }
-
-    fclose(file);
-    return program_size;
-}
-
-bool includes_extension(const char *file) {
-    const char *ext = strrchr(file, '.');
-    if (ext != NULL && strcmp(ext, ".s8") == 0) {
-        return true;
-    }
-    return false;
-}
-
-bool file_exists(const char *file) {
-    return access(file, F_OK) == 0;
-}
-
 // Run the CPU and measure speed
 void run(CPU *cpu) {
     cpu->running = true;
@@ -361,15 +272,38 @@ void run(CPU *cpu) {
 
     // Calculate instructions per second (IPS)
     double mips = (cpu->executed_instructions / elapsed_time)/1000000;
-    printf("CPU executed %lu instructions in %.2f seconds\n", cpu->executed_instructions, elapsed_time);
+    printf("CPU executed %llu instructions in %.2f seconds\n", cpu->executed_instructions, elapsed_time);
     printf("%s @ %.2f MIPS\n", CPU_NAME, mips); // Print the CPU name and MIPS
 }
 
 int main(int argc, char **argv) {
+    Config config = load_config();
+    mem_size = config.mem_size;
+    vmem_size = config.vmem_size;
+    max_program_size = config.max_program_size;
+    reg_count = config.reg_count;
+    screen_width = config.screen_width;
+    screen_height = config.screen_height;
+
     CPU cpu = {0};
 
+    // Allocate memory for CPU components
+    cpu.memory = malloc(mem_size);
+    cpu.registers = malloc(reg_count);
+    cpu.video_memory = malloc(screen_width * screen_height);
+    
+    if (!cpu.memory || !cpu.registers || !cpu.video_memory) {
+        perror("Failed to allocate CPU memory");
+        exit(EXIT_FAILURE);
+    }
+    
+    // Initialize memory to zero
+    memset(cpu.memory, 0, mem_size);
+    memset(cpu.registers, 0, reg_count);
+    memset(cpu.video_memory, 0, screen_width * screen_height);
+
     // Initialize video memory with some characters
-    for (int i = 0; i < MEM_SIZE; i++) {
+    for (int i = 0; i < mem_size; i++) {
         if (i < sizeof(characters)) {
             cpu.memory[i] = characters[i]; // Fill video memory with characters
         } else {
@@ -378,12 +312,16 @@ int main(int argc, char **argv) {
     }
 
     // Load the program from a .s8 file
-    uint8_t program[MAX_PROGRAM_SIZE]; // defines program array
+    uint8_t *program = malloc(max_program_size); // Dynamic allocation
+    if (!program) {
+        perror("Failed to allocate program memory");
+        exit(EXIT_FAILURE);
+    }
     size_t program_size = 0;
     for (int i = 1; i < argc; i++) {
         if (includes_extension(argv[i])) {
             if (file_exists(argv[i])) {
-                program_size = parse_s8_file(argv[i], program); // Loads the program into array from command line argument
+                program_size = parse_s8_file(argv[i], program, max_program_size); // Loads the program into array from command line argument
             } else {
                 perror("File doesn't exist!\nDefaulting to program.s8\n");
             }
@@ -396,7 +334,7 @@ int main(int argc, char **argv) {
             strcpy(filename_with_ext, argv[i]);
             strcat(filename_with_ext, ".s8");
             if (file_exists(filename_with_ext)) {
-                program_size = parse_s8_file(filename_with_ext, program);
+                program_size = parse_s8_file(filename_with_ext, program, max_program_size);
                 // program_size = parse_s8_file((char[]) {argv[i], '.s8', '\0'}, program);
             } else {
                 perror("File doesn't exist!\nDefaulting to program.s8\n");
@@ -405,7 +343,7 @@ int main(int argc, char **argv) {
         }
     }
     if (program_size == 0) {
-        program_size = parse_s8_file("program.s8", program);
+        program_size = parse_s8_file("program.s8", program, max_program_size);
     }
 
     // Load the program into memory
@@ -414,6 +352,12 @@ int main(int argc, char **argv) {
     // Run the CPU
     run(&cpu);
 
+    // Clean up memory
+    free(program);
+    free(cpu.memory);
+    free(cpu.registers);
+    free(cpu.video_memory);
+    
     printf("\n");
     return 0;
 }
